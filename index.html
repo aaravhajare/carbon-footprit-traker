@@ -3,174 +3,543 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Automatic Carbon Footprint Scanner</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌱 Carbon Footprint Scanner</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial;
-            background: #eef2f3;
-            text-align: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
             padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .camera-container {
+            position: relative;
+            margin: 20px 0;
+            display: inline-block;
         }
 
         video {
-            width: 320px;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 15px;
+            border: 4px solid #27ae60;
+            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.3);
+            background: #000;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            border: 3px dashed #27ae60;
             border-radius: 10px;
-            margin-top: 10px;
-            border: 3px solid #27ae60;
+            pointer-events: none;
+            opacity: 0.7;
         }
 
         button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background: #27ae60;
+            margin-top: 20px;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
             border: none;
             color: white;
-            border-radius: 5px;
+            border-radius: 50px;
             cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.6);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         button:disabled {
-            background: #aaa;
+            background: #95a5a6;
             cursor: not-allowed;
+            box-shadow: none;
         }
 
         .loader {
-            margin-top: 15px;
+            margin-top: 20px;
             display: none;
+            font-weight: bold;
+            color: #3498db;
         }
 
-        .result {
-            margin-top: 15px;
+        .loader.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #27ae60;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .result-container {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            display: none;
+            animation: slideIn 0.5s ease;
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .detection-info {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .detection-info h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .emission-display {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .emission-value {
+            font-size: 2.5em;
             font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .emission-label {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .recommendations {
+            margin-top: 25px;
+            text-align: left;
+        }
+
+        .recommendations h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.3em;
+        }
+
+        .recommendation-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid;
+            transition: transform 0.2s ease;
+        }
+
+        .recommendation-card:hover {
+            transform: translateX(5px);
+        }
+
+        .recommendation-card.reduce {
+            border-left-color: #e74c3c;
+        }
+
+        .recommendation-card.reuse {
+            border-left-color: #f39c12;
+        }
+
+        .recommendation-card.recycle {
+            border-left-color: #27ae60;
+        }
+
+        .recommendation-card h4 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .recommendation-card p {
+            color: #7f8c8d;
+            line-height: 1.6;
         }
 
         .error {
-            color: red;
-            margin-top: 10px;
+            color: #e74c3c;
+            margin-top: 15px;
+            padding: 15px;
+            background: #ffeaea;
+            border-radius: 10px;
+            border-left: 5px solid #e74c3c;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .material-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #3498db;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin: 5px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            video {
+                max-width: 100%;
+            }
+
+            .emission-value {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
 
 <body>
-    <h2>Automatic Carbon Footprint Scanner</h2>
+    <div class="container">
+        <h1>🌱 Carbon Footprint Scanner</h1>
+        <p class="subtitle">Scan any object to calculate its carbon emissions</p>
 
-    <video id="camera" autoplay playsinline></video>
-    <br>
-    <button id="scanBtn">Scan & Calculate</button>
+        <div class="camera-container">
+            <video id="camera" autoplay playsinline></video>
+            <div class="scan-overlay"></div>
+        </div>
 
-    <div class="loader" id="loader">Loading…</div>
-    <div class="result" id="result"></div>
-    <div class="error" id="error"></div>
+        <button id="scanBtn">📸 Scan & Calculate Emissions</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <div id="loaderText">Loading AI model...</div>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result-container" id="resultContainer">
+            <div class="detection-info" id="detectionInfo"></div>
+
+            <div class="emission-display">
+                <div class="emission-label">Carbon Emission</div>
+                <div class="emission-value" id="emissionValue">0.0000</div>
+                <div class="emission-label">kg CO₂e</div>
+            </div>
+
+            <div class="recommendations" id="recommendations"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0"></script>
 
     <script>
         let model;
         const video = document.getElementById("camera");
         const scanBtn = document.getElementById("scanBtn");
         const loader = document.getElementById("loader");
-        const result = document.getElementById("result");
+        const loaderText = document.getElementById("loaderText");
+        const resultContainer = document.getElementById("resultContainer");
+        const detectionInfo = document.getElementById("detectionInfo");
+        const emissionValue = document.getElementById("emissionValue");
+        const recommendations = document.getElementById("recommendations");
         const errorBox = document.getElementById("error");
 
-        // Map AI detected labels to material
+        // Material mapping: array of labels per material
         const materialMap = {
-            'paper': 'paper',
-            'cardboard': 'paper',
-            'book': 'paper',
-            'newspaper': 'paper',
-            'bottle': 'plastic',
-            'can': 'metal',
-            'jar': 'glass',
-            'cup': 'plastic',
-            'keyboard': 'metal',
-            'laptop': 'metal'
+            paper: ['book', 'newspaper', 'cardboard', 'envelope', 'paper', 'notebook', 'magazine', 'notepad'],
+            plastic: ['bottle', 'cup', 'container', 'water bottle', 'plastic', 'bag', 'packet', 'wrapper'],
+            metal: ['can', 'keyboard', 'laptop', 'pen', 'metal', 'cell phone', 'phone', 'aluminum', 'tin'],
+            glass: ['jar', 'wine glass', 'glass', 'bottle', 'vase', 'container']
         };
 
-        // Start camera
+        // Initialize camera
         async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
                 video.srcObject = stream;
-            } catch {
-                errorBox.innerText = "Camera access denied.";
+                hideError();
+            } catch (err) {
+                showError("Camera access denied. Please allow camera access to use this app.");
+                scanBtn.disabled = true;
             }
         }
 
         // Load AI model
         async function loadModel() {
-            loader.style.display = "block";
-            loader.innerText = "Loading AI model…";
-            model = await mobilenet.load();
-            loader.style.display = "none";
+            try {
+                showLoader("Loading AI model...");
+                model = await mobilenet.load({ version: 2, alpha: 1.0 });
+                hideLoader();
+            } catch (err) {
+                showError("Failed to load AI model. Please refresh the page.");
+                scanBtn.disabled = true;
+            }
         }
 
-        // Identify object and map to material
+        // Map detected label to material
         function getMaterial(label) {
             label = label.toLowerCase();
-            for (const key in materialMap) {
-                if (label.includes(key)) return materialMap[key];
+            for (const material in materialMap) {
+                if (materialMap[material].some(key => label.includes(key))) {
+                    return material;
+                }
             }
-            const materialMap = {
-                paper: ['book', 'newspaper', 'cardboard', 'envelope', 'paper', 'notebook'],
-                plastic: ['bottle', 'cup', 'container', 'water bottle', 'plastic', 'bag'],
-                metal: ['can', 'keyboard', 'laptop', 'pen', 'metal', 'cell phone'],
-                glass: ['jar', 'wine glass', 'glass', 'bottle']
-            };
-            return materialMap
+            return "paper"; // fallback default
         }
 
-        // Scan button
+        // Show/hide functions
+        function showLoader(text) {
+            loaderText.textContent = text;
+            loader.classList.add("active");
+        }
+
+        function hideLoader() {
+            loader.classList.remove("active");
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.add("show");
+        }
+
+        function hideError() {
+            errorBox.classList.remove("show");
+        }
+
+        // Calculate emissions
+        async function calculateEmissions(material, weight) {
+            try {
+                // Try Netlify function first
+                const response = await fetch("/.netlify/functions/emission", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ material, weight })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    return data;
+                } else {
+                    throw new Error("API call failed");
+                }
+            } catch (err) {
+                // Fallback to client-side calculation
+                console.log("Using fallback calculation");
+                const emissionFactors = {
+                    paper: 1.2,
+                    plastic: 3.5,
+                    metal: 2.5,
+                    glass: 0.9
+                };
+
+                const factor = emissionFactors[material.toLowerCase()] || 2.0;
+                const co2e = (factor * weight).toFixed(4);
+
+                const recs = {
+                    paper: {
+                        reduce: "Use digital alternatives, print double-sided, reduce paper usage",
+                        reuse: "Use both sides of paper, create notepads from scrap paper",
+                        recycle: "Recycle paper products - saves 60% energy compared to new paper"
+                    },
+                    plastic: {
+                        reduce: "Avoid single-use plastics, use reusable containers and bags",
+                        reuse: "Repurpose plastic containers, use refillable bottles",
+                        recycle: "Recycle plastic properly - reduces emissions by 50%"
+                    },
+                    metal: {
+                        reduce: "Choose products with less packaging, buy durable items",
+                        reuse: "Repair metal items, donate or sell instead of discarding",
+                        recycle: "Recycle metal - saves 95% energy compared to new production"
+                    },
+                    glass: {
+                        reduce: "Buy products in bulk to reduce packaging, choose lighter containers",
+                        reuse: "Use glass jars for storage, repurpose bottles as containers",
+                        recycle: "Recycle glass - saves 30% energy and reduces landfill waste"
+                    }
+                };
+
+                return {
+                    co2e: co2e,
+                    material: material,
+                    weight: weight,
+                    recommendations: recs[material.toLowerCase()] || recs.paper
+                };
+            }
+        }
+
+        // Display results
+        function displayResults(detectedLabel, material, emissionData) {
+            detectionInfo.innerHTML = `
+                <h3>📦 Detected Object</h3>
+                <p><strong>Label:</strong> ${detectedLabel}</p>
+                <p><strong>Material Type:</strong> <span class="material-badge">${material.toUpperCase()}</span></p>
+                <p><strong>Estimated Weight:</strong> ${(emissionData.weight * 1000).toFixed(0)}g</p>
+            `;
+
+            emissionValue.textContent = parseFloat(emissionData.co2e).toFixed(4);
+
+            const recs = emissionData.recommendations || {};
+            recommendations.innerHTML = `
+                <h3>🌍 Ways to Reduce Impact (3-R Principle)</h3>
+                <div class="recommendation-card reduce">
+                    <h4>🔴 REDUCE</h4>
+                    <p>${recs.reduce || "Reduce consumption and waste generation"}</p>
+                </div>
+                <div class="recommendation-card reuse">
+                    <h4>🟡 REUSE</h4>
+                    <p>${recs.reuse || "Find new purposes for items instead of discarding"}</p>
+                </div>
+                <div class="recommendation-card recycle">
+                    <h4>🟢 RECYCLE</h4>
+                    <p>${recs.recycle || "Properly recycle materials to reduce environmental impact"}</p>
+                </div>
+            `;
+
+            resultContainer.classList.add("show");
+        }
+
+        // Scan button click
         scanBtn.onclick = async () => {
             if (!model) {
-                errorBox.innerText = "Model not loaded yet.";
+                showError("AI model not loaded yet. Please wait...");
                 return;
             }
 
-            loader.style.display = "block";
-            loader.innerText = "Scanning object…";
-            result.innerText = "";
-            errorBox.innerText = "";
+            showLoader("Scanning object...");
+            resultContainer.classList.remove("show");
+            hideError();
             scanBtn.disabled = true;
 
             try {
+                // Predict object using MobileNet
                 const predictions = await model.classify(video);
-                const label = predictions[0].className;
+                const topPrediction = predictions[0];
+                const label = topPrediction.className;
+                const confidence = (topPrediction.probability * 100).toFixed(1);
+
                 const material = getMaterial(label);
-                const weightKg = 0.1; // default 100g
+                const weightKg = 0.1; // default 100g (can be made adjustable)
 
-                loader.innerText = "Calculating emissions…";
+                showLoader("Calculating carbon emissions...");
 
-                const controller = new AbortController();
-                setTimeout(() => controller.abort(), 8000);
+                const emissionData = await calculateEmissions(material, weightKg);
 
-                const res = await fetch("/.netlify/functions/emission", {
-                    method: "POST",
-                    body: JSON.stringify({ material, weight: weightKg }),
-                    signal: controller.signal
-                });
-
-                if (!res.ok) throw new Error("API failed");
-
-                const data = await res.json();
-
-                result.innerHTML = `
-      Detected: ${label} → Material: ${material}<br>
-      Emission: ${data.co2e} kg CO₂e
-    `;
+                if (emissionData && emissionData.co2e) {
+                    displayResults(label, material, emissionData);
+                } else {
+                    throw new Error("Invalid emission data received");
+                }
 
             } catch (err) {
-                errorBox.innerText = "Failed to calculate emissions.";
+                console.error("Error:", err);
+                showError("Failed to calculate emissions. Please try again.");
             }
 
-            loader.style.display = "none";
+            hideLoader();
             scanBtn.disabled = false;
         }
 
-        // Init
-        startCamera();
-        loadModel();
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            startCamera();
+            loadModel();
+        });
     </script>
 </body>
 
