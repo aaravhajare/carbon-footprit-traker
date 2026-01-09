@@ -3,54 +3,66 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Carbon Footprint Tracker</title>
+    <title>Carbon Footprint Scanner</title>
 
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
+            font-family: Arial;
+            background: #eef2f3;
             text-align: center;
-            padding: 40px;
+            padding: 30px;
         }
 
         .card {
             background: white;
-            max-width: 400px;
+            padding: 20px;
+            max-width: 420px;
             margin: auto;
-            padding: 25px;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        video {
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
         }
 
         button {
-            padding: 10px 18px;
-            font-size: 16px;
-            cursor: pointer;
-            background: #2ecc71;
+            margin-top: 10px;
+            padding: 10px;
+            width: 100%;
+            background: #27ae60;
             border: none;
             color: white;
-            border-radius: 5px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
         }
 
         button:disabled {
             background: #aaa;
-            cursor: not-allowed;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
         }
 
         .loader {
             display: none;
-            margin-top: 15px;
+            margin-top: 10px;
+        }
+
+        .result {
+            font-weight: bold;
+            margin-top: 10px;
         }
 
         .error {
             color: red;
             margin-top: 10px;
-        }
-
-        .result {
-            margin-top: 15px;
-            font-weight: bold;
-            color: #333;
         }
     </style>
 </head>
@@ -58,12 +70,18 @@
 <body>
 
     <div class="card">
-        <h2>Carbon Footprint Tracker</h2>
+        <h2>Carbon Footprint Scanner</h2>
 
-        <p>Detected object: <b>Paper</b></p>
-        <p>Weight: <b>1 kg</b></p>
+        <video id="camera" autoplay></video>
 
-        <button id="calcBtn">Calculate Emission</button>
+        <select id="material">
+            <option value="paper">Paper</option>
+            <option value="plastic">Plastic</option>
+            <option value="glass">Glass</option>
+            <option value="metal">Metal</option>
+        </select>
+
+        <button id="scanBtn">Scan & Calculate</button>
 
         <div class="loader" id="loader">Calculating emissions...</div>
         <div class="result" id="result"></div>
@@ -71,25 +89,34 @@
     </div>
 
     <script>
-        const btn = document.getElementById("calcBtn");
+        const video = document.getElementById("camera");
+        const btn = document.getElementById("scanBtn");
         const loader = document.getElementById("loader");
         const result = document.getElementById("result");
         const errorBox = document.getElementById("error");
 
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream)
+            .catch(() => {
+                errorBox.innerText = "Camera access denied";
+            });
+
         btn.onclick = async () => {
-            btn.disabled = true;
             loader.style.display = "block";
+            btn.disabled = true;
             result.innerText = "";
             errorBox.innerText = "";
 
+            const material = document.getElementById("material").value;
+
             const controller = new AbortController();
-            setTimeout(() => controller.abort(), 8000); // timeout
+            setTimeout(() => controller.abort(), 8000);
 
             try {
                 const res = await fetch("/.netlify/functions/emission", {
                     method: "POST",
                     body: JSON.stringify({
-                        material: "paper",
+                        material: material,
                         weight: 1
                     }),
                     signal: controller.signal
@@ -98,13 +125,10 @@
                 if (!res.ok) throw new Error("API failed");
 
                 const data = await res.json();
+                result.innerText = `Estimated Emission: ${data.co2e} kg CO₂e`;
 
-                result.innerText =
-                    `Estimated Emissions: ${data.co2e} kg CO₂e`;
-
-            } catch (err) {
-                errorBox.innerText =
-                    "Failed to calculate emissions. Please try again.";
+            } catch {
+                errorBox.innerText = "Failed to calculate emission";
             }
 
             loader.style.display = "none";
