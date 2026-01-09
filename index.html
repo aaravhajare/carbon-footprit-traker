@@ -112,7 +112,13 @@
             for (const key in materialMap) {
                 if (label.includes(key)) return materialMap[key];
             }
-            return "paper"; // default
+            const materialMap = {
+                paper: ['book', 'newspaper', 'cardboard', 'envelope', 'paper', 'notebook'],
+                plastic: ['bottle', 'cup', 'container', 'water bottle', 'plastic', 'bag'],
+                metal: ['can', 'keyboard', 'laptop', 'pen', 'metal', 'cell phone'],
+                glass: ['jar', 'wine glass', 'glass', 'bottle']
+            };
+            return materialMap
         }
 
         // Scan button
