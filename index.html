@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Carbon Footprint Scanner</title>
+    <title>Automatic Carbon Footprint Scanner</title>
 
     <style>
         body {
@@ -13,51 +13,36 @@
             padding: 30px;
         }
 
-        .card {
-            background: white;
-            padding: 20px;
-            max-width: 420px;
-            margin: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
         video {
-            width: 100%;
-            border-radius: 8px;
+            width: 320px;
+            border-radius: 10px;
             margin-top: 10px;
+            border: 3px solid #27ae60;
         }
 
         button {
-            margin-top: 10px;
-            padding: 10px;
-            width: 100%;
+            margin-top: 15px;
+            padding: 10px 20px;
             background: #27ae60;
             border: none;
             color: white;
-            font-size: 16px;
-            border-radius: 6px;
+            border-radius: 5px;
             cursor: pointer;
         }
 
         button:disabled {
             background: #aaa;
-        }
-
-        select {
-            width: 100%;
-            padding: 8px;
-            margin-top: 10px;
+            cursor: not-allowed;
         }
 
         .loader {
+            margin-top: 15px;
             display: none;
-            margin-top: 10px;
         }
 
         .result {
+            margin-top: 15px;
             font-weight: bold;
-            margin-top: 10px;
         }
 
         .error {
@@ -68,74 +53,119 @@
 </head>
 
 <body>
+    <h2>Automatic Carbon Footprint Scanner</h2>
 
-    <div class="card">
-        <h2>Carbon Footprint Scanner</h2>
+    <video id="camera" autoplay playsinline></video>
+    <br>
+    <button id="scanBtn">Scan & Calculate</button>
 
-        <video id="camera" autoplay></video>
+    <div class="loader" id="loader">Loading…</div>
+    <div class="result" id="result"></div>
+    <div class="error" id="error"></div>
 
-        <select id="material">
-            <option value="paper">Paper</option>
-            <option value="plastic">Plastic</option>
-            <option value="glass">Glass</option>
-            <option value="metal">Metal</option>
-        </select>
-
-        <button id="scanBtn">Scan & Calculate</button>
-
-        <div class="loader" id="loader">Calculating emissions...</div>
-        <div class="result" id="result"></div>
-        <div class="error" id="error"></div>
-    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
 
     <script>
+        let model;
         const video = document.getElementById("camera");
-        const btn = document.getElementById("scanBtn");
+        const scanBtn = document.getElementById("scanBtn");
         const loader = document.getElementById("loader");
         const result = document.getElementById("result");
         const errorBox = document.getElementById("error");
 
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => video.srcObject = stream)
-            .catch(() => {
-                errorBox.innerText = "Camera access denied";
-            });
+        // Map AI detected labels to material
+        const materialMap = {
+            'paper': 'paper',
+            'cardboard': 'paper',
+            'book': 'paper',
+            'newspaper': 'paper',
+            'bottle': 'plastic',
+            'can': 'metal',
+            'jar': 'glass',
+            'cup': 'plastic',
+            'keyboard': 'metal',
+            'laptop': 'metal'
+        };
 
-        btn.onclick = async () => {
+        // Start camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch {
+                errorBox.innerText = "Camera access denied.";
+            }
+        }
+
+        // Load AI model
+        async function loadModel() {
             loader.style.display = "block";
-            btn.disabled = true;
+            loader.innerText = "Loading AI model…";
+            model = await mobilenet.load();
+            loader.style.display = "none";
+        }
+
+        // Identify object and map to material
+        function getMaterial(label) {
+            label = label.toLowerCase();
+            for (const key in materialMap) {
+                if (label.includes(key)) return materialMap[key];
+            }
+            return "paper"; // default
+        }
+
+        // Scan button
+        scanBtn.onclick = async () => {
+            if (!model) {
+                errorBox.innerText = "Model not loaded yet.";
+                return;
+            }
+
+            loader.style.display = "block";
+            loader.innerText = "Scanning object…";
             result.innerText = "";
             errorBox.innerText = "";
-
-            const material = document.getElementById("material").value;
-
-            const controller = new AbortController();
-            setTimeout(() => controller.abort(), 8000);
+            scanBtn.disabled = true;
 
             try {
+                const predictions = await model.classify(video);
+                const label = predictions[0].className;
+                const material = getMaterial(label);
+                const weightKg = 0.1; // default 100g
+
+                loader.innerText = "Calculating emissions…";
+
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 8000);
+
                 const res = await fetch("/.netlify/functions/emission", {
                     method: "POST",
-                    body: JSON.stringify({
-                        material: material,
-                        weight: 1
-                    }),
+                    body: JSON.stringify({ material, weight: weightKg }),
                     signal: controller.signal
                 });
 
                 if (!res.ok) throw new Error("API failed");
 
                 const data = await res.json();
-                result.innerText = `Estimated Emission: ${data.co2e} kg CO₂e`;
 
-            } catch {
-                errorBox.innerText = "Failed to calculate emission";
+                result.innerHTML = `
+      Detected: ${label} → Material: ${material}<br>
+      Emission: ${data.co2e} kg CO₂e
+    `;
+
+            } catch (err) {
+                errorBox.innerText = "Failed to calculate emissions.";
             }
 
             loader.style.display = "none";
-            btn.disabled = false;
-        };
-    </script>
+            scanBtn.disabled = false;
+        }
 
+        // Init
+        startCamera();
+        loadModel();
+    </script>
 </body>
 
 </html>
