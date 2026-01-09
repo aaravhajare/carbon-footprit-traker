@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Carbon Footprint Scanner</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #eef6f1;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1e8449;
+        }
+
+        video {
+            width: 320px;
+            border-radius: 10px;
+            border: 4px solid #27ae60;
+            margin-top: 15px;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        #output {
+            margin-top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: inline-block;
+            font-size: 17px;
+        }
+
+        small {
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Carbon Footprint Scanner</h1>
+
+    <video id="video" autoplay playsinline></video><br>
+    <button onclick="scanObject()">Scan Object</button>
+
+    <div id="output">Loading AI model…</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+
+    <script>
+        /* ================================
+           🔑 YOUR CLIMATIQ API KEY
+           ================================ */
+        const API_KEY = "ZE441C2N2D48157CYR52CC2PNW";
+        const CLIMATIQ_ENDPOINT = "https://api.climatiq.io/estimate";
+
+        let model;
+        const video = document.getElementById("video");
+        const output = document.getElementById("output");
+
+        // Map detected material → Climatiq activity_id
+        const activityMap = {
+            paper: "material_paper",
+            plastic: "material_plastic",
+            cardboard: "material_cardboard",
+            metal: "material_steel"
+        };
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch {
+                output.innerHTML = "❌ Camera blocked. Use localhost or HTTPS.";
+            }
+        }
+
+        async function loadModel() {
+            model = await mobilenet.load();
+            output.innerText = "Model loaded. Ready to scan.";
+        }
+
+        async function scanObject() {
+            if (!model) return;
+
+            const predictions = await model.classify(video);
+            const label = predictions[0].className.toLowerCase();
+
+            let material = "paper";
+            if (label.includes("plastic") || label.includes("bottle")) material = "plastic";
+            else if (label.includes("cardboard")) material = "cardboard";
+            else if (label.includes("metal") || label.includes("can")) material = "metal";
+
+            const weightKg = 0.1; // 100g default
+            const activityId = activityMap[material];
+
+            output.innerText = "Calculating emissions…";
+
+            /* ================================
+               🌍 CLIMATIQ API CALL
+               ================================ */
+            const response = await fetch(CLIMATIQ_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + API_KEY,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    emission_factor: {
+                        activity_id: activityId,
+                        region: "global"
+                    },
+                    parameters: {
+                        weight: weightKg,
+                        weight_unit: "kg"
+                    }
+                })
+            });
+
+            const data = await response.json();
+
+            output.innerHTML = `
+    <b>Detected Material:</b> ${material.toUpperCase()}<br>
+    <b>Weight:</b> 100 g<br>
+    <b>Carbon Emission:</b> ${data.co2e.toFixed(2)} kg CO₂e<br><br>
+    <small>Calculated using Climatiq API (scientific emission factors)</small>
+  `;
+        }
+
+        // Init
+        startCamera();
+        loadModel();
+    </script>
+
+</body>
+
+</html>
