@@ -2,545 +2,255 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌱 Carbon Footprint Scanner</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Carbon Footprint Scanner</title>
 
+    <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             min-height: 100vh;
-            padding: 20px;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            margin: 0;
         }
 
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
+            background: #fff;
+            padding: 25px;
+            border-radius: 15px;
             width: 100%;
-            padding: 30px;
+            max-width: 500px;
             text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
         }
 
         h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-            font-size: 2em;
+            margin-bottom: 5px;
         }
 
         .subtitle {
-            color: #7f8c8d;
-            margin-bottom: 30px;
-            font-size: 0.9em;
-        }
-
-        .camera-container {
-            position: relative;
-            margin: 20px 0;
-            display: inline-block;
+            color: #666;
+            font-size: .9em;
+            margin-bottom: 20px;
         }
 
         video {
             width: 100%;
-            max-width: 500px;
-            border-radius: 15px;
+            border-radius: 12px;
             border: 4px solid #27ae60;
-            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.3);
             background: #000;
         }
 
-        .scan-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 80%;
-            border: 3px dashed #27ae60;
-            border-radius: 10px;
-            pointer-events: none;
-            opacity: 0.7;
-        }
-
         button {
-            margin-top: 20px;
-            padding: 15px 40px;
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 1em;
             border: none;
+            border-radius: 30px;
+            background: #27ae60;
             color: white;
-            border-radius: 50px;
             cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
-            transition: all 0.3s ease;
-        }
-
-        button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.6);
-        }
-
-        button:active:not(:disabled) {
-            transform: translateY(0);
         }
 
         button:disabled {
-            background: #95a5a6;
-            cursor: not-allowed;
-            box-shadow: none;
+            background: #aaa;
         }
 
         .loader {
-            margin-top: 20px;
             display: none;
-            font-weight: bold;
+            margin-top: 15px;
             color: #3498db;
         }
 
-        .loader.active {
+        .loader.show {
             display: block;
         }
 
         .spinner {
-            border: 4px solid #f3f3f3;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #eee;
             border-top: 4px solid #27ae60;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
             animation: spin 1s linear infinite;
             margin: 10px auto;
         }
 
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
+            to {
                 transform: rotate(360deg);
             }
         }
 
-        .result-container {
-            margin-top: 30px;
-            padding: 25px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 15px;
+        .result {
             display: none;
-            animation: slideIn 0.5s ease;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f2f4f8;
+            border-radius: 12px;
         }
 
-        .result-container.show {
+        .result.show {
             display: block;
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .detection-info {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .detection-info h3 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-
-        .emission-display {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px 0;
-            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
-        }
-
-        .emission-value {
-            font-size: 2.5em;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-
-        .emission-label {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .recommendations {
-            margin-top: 25px;
-            text-align: left;
-        }
-
-        .recommendations h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 1.3em;
-        }
-
-        .recommendation-card {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            border-left: 5px solid;
-            transition: transform 0.2s ease;
-        }
-
-        .recommendation-card:hover {
-            transform: translateX(5px);
-        }
-
-        .recommendation-card.reduce {
-            border-left-color: #e74c3c;
-        }
-
-        .recommendation-card.reuse {
-            border-left-color: #f39c12;
-        }
-
-        .recommendation-card.recycle {
-            border-left-color: #27ae60;
-        }
-
-        .recommendation-card h4 {
-            color: #2c3e50;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .recommendation-card p {
-            color: #7f8c8d;
-            line-height: 1.6;
+        .badge {
+            display: inline-block;
+            background: #3498db;
+            color: #fff;
+            padding: 5px 14px;
+            border-radius: 20px;
+            margin-top: 5px;
         }
 
         .error {
-            color: #e74c3c;
-            margin-top: 15px;
-            padding: 15px;
-            background: #ffeaea;
-            border-radius: 10px;
-            border-left: 5px solid #e74c3c;
             display: none;
+            margin-top: 15px;
+            background: #ffeaea;
+            color: #c0392b;
+            padding: 12px;
+            border-radius: 10px;
         }
 
         .error.show {
             display: block;
         }
-
-        .material-badge {
-            display: inline-block;
-            padding: 5px 15px;
-            background: #3498db;
-            color: white;
-            border-radius: 20px;
-            font-size: 0.9em;
-            margin: 5px;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 20px;
-            }
-
-            h1 {
-                font-size: 1.5em;
-            }
-
-            video {
-                max-width: 100%;
-            }
-
-            .emission-value {
-                font-size: 2em;
-            }
-        }
     </style>
 </head>
 
 <body>
+
     <div class="container">
-        <h1>🌱 Carbon Footprint Scanner</h1>
-        <p class="subtitle">Scan any object to calculate its carbon emissions</p>
+        <h1>Carbon Footprint Scanner</h1>
+        <p class="subtitle">Scan an object to estimate CO₂ emissions</p>
 
-        <div class="camera-container">
-            <video id="camera" autoplay playsinline></video>
-            <div class="scan-overlay"></div>
-        </div>
+        <video id="video" autoplay playsinline></video>
 
-        <button id="scanBtn">📸 Scan & Calculate Emissions</button>
+        <button id="scanBtn">Scan Object</button>
 
         <div class="loader" id="loader">
             <div class="spinner"></div>
-            <div id="loaderText">Loading AI model...</div>
+            <div id="loaderText">Processing...</div>
         </div>
 
         <div class="error" id="error"></div>
 
-        <div class="result-container" id="resultContainer">
-            <div class="detection-info" id="detectionInfo"></div>
+        <div class="result" id="result">
+            <h3>Detected Object</h3>
+            <p id="objectName"></p>
+            <span class="badge" id="material"></span>
 
-            <div class="emission-display">
-                <div class="emission-label">Carbon Emission</div>
-                <div class="emission-value" id="emissionValue">0.0000</div>
-                <div class="emission-label">kg CO₂e</div>
-            </div>
-
-            <div class="recommendations" id="recommendations"></div>
+            <h3 style="margin-top:15px;">Carbon Emission</h3>
+            <h2 id="emission">0.000 kg CO₂e</h2>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0"></script>
-
     <script>
-        let model;
-        const video = document.getElementById("camera");
+        const video = document.getElementById("video");
         const scanBtn = document.getElementById("scanBtn");
         const loader = document.getElementById("loader");
         const loaderText = document.getElementById("loaderText");
-        const resultContainer = document.getElementById("resultContainer");
-        const detectionInfo = document.getElementById("detectionInfo");
-        const emissionValue = document.getElementById("emissionValue");
-        const recommendations = document.getElementById("recommendations");
         const errorBox = document.getElementById("error");
+        const resultBox = document.getElementById("result");
 
-        // Material mapping: array of labels per material
-        const materialMap = {
-            paper: ['book', 'newspaper', 'cardboard', 'envelope', 'paper', 'notebook', 'magazine', 'notepad'],
-            plastic: ['bottle', 'cup', 'container', 'water bottle', 'plastic', 'bag', 'packet', 'wrapper'],
-            metal: ['can', 'keyboard', 'laptop', 'pen', 'metal', 'cell phone', 'phone', 'aluminum', 'tin'],
-            glass: ['jar', 'wine glass', 'glass', 'bottle', 'vase', 'container']
-        };
+        const objectNameEl = document.getElementById("objectName");
+        const materialEl = document.getElementById("material");
+        const emissionEl = document.getElementById("emission");
 
-        // Initialize camera
+        /* ---------------- CAMERA ---------------- */
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
+                    video: { facingMode: "environment" }
                 });
                 video.srcObject = stream;
-                hideError();
-            } catch (err) {
-                showError("Camera access denied. Please allow camera access to use this app.");
-                scanBtn.disabled = true;
+            } catch {
+                showError("Camera access denied");
             }
         }
 
-        // Load AI model
-        async function loadModel() {
-            try {
-                showLoader("Loading AI model...");
-                model = await mobilenet.load({ version: 2, alpha: 1.0 });
-                hideLoader();
-            } catch (err) {
-                showError("Failed to load AI model. Please refresh the page.");
-                scanBtn.disabled = true;
-            }
-        }
-
-        // Map detected label to material
-        function getMaterial(label) {
-            label = label.toLowerCase();
-            for (const material in materialMap) {
-                if (materialMap[material].some(key => label.includes(key))) {
-                    return material;
-                }
-            }
-            return "paper"; // fallback default
-        }
-
-        // Show/hide functions
+        /* ---------------- HELPERS ---------------- */
         function showLoader(text) {
             loaderText.textContent = text;
-            loader.classList.add("active");
+            loader.classList.add("show");
         }
-
         function hideLoader() {
-            loader.classList.remove("active");
+            loader.classList.remove("show");
         }
-
-        function showError(message) {
-            errorBox.textContent = message;
+        function showError(msg) {
+            errorBox.textContent = msg;
             errorBox.classList.add("show");
         }
-
-        function hideError() {
+        function clearUI() {
             errorBox.classList.remove("show");
+            resultBox.classList.remove("show");
         }
 
-        // Calculate emissions
-        async function calculateEmissions(material, weight) {
-            try {
-                // Try Netlify function first
-                const response = await fetch("/.netlify/functions/emission", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ material, weight })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    return data;
-                } else {
-                    throw new Error("API call failed");
-                }
-            } catch (err) {
-                // Fallback to client-side calculation
-                console.log("Using fallback calculation");
-                const emissionFactors = {
-                    paper: 1.2,
-                    plastic: 3.5,
-                    metal: 2.5,
-                    glass: 0.9
-                };
-
-                const factor = emissionFactors[material.toLowerCase()] || 2.0;
-                const co2e = (factor * weight).toFixed(4);
-
-                const recs = {
-                    paper: {
-                        reduce: "Use digital alternatives, print double-sided, reduce paper usage",
-                        reuse: "Use both sides of paper, create notepads from scrap paper",
-                        recycle: "Recycle paper products - saves 60% energy compared to new paper"
-                    },
-                    plastic: {
-                        reduce: "Avoid single-use plastics, use reusable containers and bags",
-                        reuse: "Repurpose plastic containers, use refillable bottles",
-                        recycle: "Recycle plastic properly - reduces emissions by 50%"
-                    },
-                    metal: {
-                        reduce: "Choose products with less packaging, buy durable items",
-                        reuse: "Repair metal items, donate or sell instead of discarding",
-                        recycle: "Recycle metal - saves 95% energy compared to new production"
-                    },
-                    glass: {
-                        reduce: "Buy products in bulk to reduce packaging, choose lighter containers",
-                        reuse: "Use glass jars for storage, repurpose bottles as containers",
-                        recycle: "Recycle glass - saves 30% energy and reduces landfill waste"
-                    }
-                };
-
-                return {
-                    co2e: co2e,
-                    material: material,
-                    weight: weight,
-                    recommendations: recs[material.toLowerCase()] || recs.paper
-                };
-            }
+        /* ---------------- SCREENSHOT ---------------- */
+        function captureImage() {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            return canvas.toDataURL("image/jpeg", 0.8);
         }
 
-        // Display results
-        function displayResults(detectedLabel, material, emissionData) {
-            detectionInfo.innerHTML = `
-                <h3>📦 Detected Object</h3>
-                <p><strong>Label:</strong> ${detectedLabel}</p>
-                <p><strong>Material Type:</strong> <span class="material-badge">${material.toUpperCase()}</span></p>
-                <p><strong>Estimated Weight:</strong> ${(emissionData.weight * 1000).toFixed(0)}g</p>
-            `;
-
-            emissionValue.textContent = parseFloat(emissionData.co2e).toFixed(4);
-
-            const recs = emissionData.recommendations || {};
-            recommendations.innerHTML = `
-                <h3>🌍 Ways to Reduce Impact (3-R Principle)</h3>
-                <div class="recommendation-card reduce">
-                    <h4>🔴 REDUCE</h4>
-                    <p>${recs.reduce || "Reduce consumption and waste generation"}</p>
-                </div>
-                <div class="recommendation-card reuse">
-                    <h4>🟡 REUSE</h4>
-                    <p>${recs.reuse || "Find new purposes for items instead of discarding"}</p>
-                </div>
-                <div class="recommendation-card recycle">
-                    <h4>🟢 RECYCLE</h4>
-                    <p>${recs.recycle || "Properly recycle materials to reduce environmental impact"}</p>
-                </div>
-            `;
-
-            resultContainer.classList.add("show");
+        /* ---------------- EMISSION ---------------- */
+        function calculateEmission(material) {
+            const factors = {
+                paper: 1.2,
+                plastic: 3.5,
+                metal: 2.5,
+                glass: 0.9,
+                soil: 0.2,
+                wood: 0.6
+            };
+            const weightKg = 0.1;
+            return (factors[material] * weightKg).toFixed(3);
         }
 
-        // Scan button click
+        /* ---------------- SCAN FLOW ---------------- */
         scanBtn.onclick = async () => {
-            if (!model) {
-                showError("AI model not loaded yet. Please wait...");
-                return;
-            }
-
-            showLoader("Scanning object...");
-            resultContainer.classList.remove("show");
-            hideError();
+            clearUI();
+            showLoader("Analyzing image...");
             scanBtn.disabled = true;
 
             try {
-                // Predict object using MobileNet
-                const predictions = await model.classify(video);
-                const topPrediction = predictions[0];
-                const label = topPrediction.className;
-                const confidence = (topPrediction.probability * 100).toFixed(1);
+                const image = captureImage();
 
-                const material = getMaterial(label);
-                const weightKg = 0.1; // default 100g (can be made adjustable)
+                const res = await fetch("/.netlify/functions/analyze", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ imageBase64: image })
+                });
 
-                showLoader("Calculating carbon emissions...");
+                if (!res.ok) throw new Error("AI analysis failed");
 
-                const emissionData = await calculateEmissions(material, weightKg);
+                const data = await res.json();
 
-                if (emissionData && emissionData.co2e) {
-                    displayResults(label, material, emissionData);
-                } else {
-                    throw new Error("Invalid emission data received");
-                }
+                const emission = calculateEmission(data.material);
+
+                objectNameEl.textContent = data.object;
+                materialEl.textContent = data.material.toUpperCase();
+                emissionEl.textContent = emission + " kg CO₂e";
+
+                resultBox.classList.add("show");
 
             } catch (err) {
-                console.error("Error:", err);
-                showError("Failed to calculate emissions. Please try again.");
+                showError(err.message);
             }
 
             hideLoader();
             scanBtn.disabled = false;
-        }
+        };
 
-        // Initialize on page load
-        window.addEventListener('load', () => {
-            startCamera();
-            loadModel();
-        });
+        /* ---------------- INIT ---------------- */
+        startCamera();
     </script>
+
 </body>
 
 </html>
