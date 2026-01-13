@@ -11,6 +11,9 @@ export const handler = async (event) => {
             };
         }
 
+        // Ensure image is in proper data URL format
+        const imageUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+
         const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -24,33 +27,45 @@ export const handler = async (event) => {
                     content: [
                         {
                             type: "text",
-                            text:
-                                "Identify the main object in the image and classify its material strictly as one of: paper, plastic, metal, glass, soil, wood. Respond ONLY in JSON like: {\"object\":\"...\",\"material\":\"...\"}"
+                            text: "Identify the main object in the image and classify its material strictly as one of: paper, plastic, metal, glass, soil, wood. Respond ONLY in JSON like: {\"object\":\"...\",\"material\":\"...\"}"
                         },
                         {
                             type: "image_url",
-                            image_url: { url: imageBase64 }
+                            image_url: { url: imageUrl }
                         }
                     ]
                 }]
             })
         });
 
-        const data = await res.json();
-        const content = data?.choices?.[0]?.message?.content || "";
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(`API Error: ${res.status} - ${errorData?.error?.message || "Unknown error"}`);
+        }
 
+        const data = await res.json();
+
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            throw new Error("Invalid API response structure");
+        }
+
+        const content = data.choices[0].message.content || "";
         const json = content.match(/\{[\s\S]*\}/);
-        if (!json) throw new Error("Invalid AI response");
+
+        if (!json) throw new Error("Invalid AI response format");
+
+        const parsed = JSON.parse(json[0]);
 
         return {
             statusCode: 200,
-            body: json[0]
+            body: JSON.stringify(parsed)
         };
 
     } catch (err) {
+        console.error("Error in analyze function:", err);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: err.message })
+            body: JSON.stringify({ error: err.message || "Analysis failed" })
         };
     }
 };
