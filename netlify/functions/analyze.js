@@ -19,7 +19,7 @@ export const handler = async (event) => {
         });
 
         const stream = await openrouter.chat.completions.create({
-            model: "allenai/molmo-2-8b:free",
+            model: "mistralai/mistral-small-3.1-24b-instruct:free",
             messages: [
                 {
                     role: "user",
@@ -36,8 +36,7 @@ export const handler = async (event) => {
                         }
                     ]
                 }
-            ],
-            stream: false
+            ]
         });
 
         const content = stream.choices[0]?.message?.content || "";
