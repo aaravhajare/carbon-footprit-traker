@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+import { OpenRouter } from "@openrouter/sdk";
 
 export const handler = async (event) => {
     try {
@@ -14,15 +14,14 @@ export const handler = async (event) => {
         // Ensure image is in proper data URL format
         const imageUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: "allenai/molmo-2-8b:free",
-                messages: [{
+        const openrouter = new OpenRouter({
+            apiKey: process.env.OPENROUTER_API_KEY
+        });
+
+        const stream = await openrouter.chat.completions.create({
+            model: "allenai/molmo-2-8b:free",
+            messages: [
+                {
                     role: "user",
                     content: [
                         {
@@ -31,25 +30,17 @@ export const handler = async (event) => {
                         },
                         {
                             type: "image_url",
-                            image_url: { url: imageUrl }
+                            image_url: {
+                                url: imageUrl
+                            }
                         }
                     ]
-                }]
-            })
+                }
+            ],
+            stream: false
         });
 
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(`API Error: ${res.status} - ${errorData?.error?.message || "Unknown error"}`);
-        }
-
-        const data = await res.json();
-
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            throw new Error("Invalid API response structure");
-        }
-
-        const content = data.choices[0].message.content || "";
+        const content = stream.choices[0]?.message?.content || "";
         const json = content.match(/\{[\s\S]*\}/);
 
         if (!json) throw new Error("Invalid AI response format");
