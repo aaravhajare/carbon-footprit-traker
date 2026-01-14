@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Carbon Emission Detector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,25 +14,42 @@
             padding: 20px;
         }
 
-        video,
-        img {
+        video {
             width: 320px;
-            border-radius: 8px;
-            margin-top: 10px;
+            border-radius: 10px;
+            border: 2px solid #2ecc71;
         }
 
         button {
-            padding: 10px 20px;
+            margin-top: 12px;
+            padding: 12px 28px;
             font-size: 16px;
-            margin-top: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #2ecc71;
+            color: white;
             cursor: pointer;
         }
 
+        button:disabled {
+            background: gray;
+        }
+
         #result {
-            background: white;
             margin-top: 20px;
+            background: white;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .item {
+            background: #ecf0f1;
+            margin: 6px 0;
+            padding: 8px;
+            border-radius: 6px;
         }
     </style>
 </head>
@@ -38,70 +57,45 @@
 <body>
 
     <h2>Carbon Emission Detector</h2>
+    <p>Point camera at an object → Click Analyze</p>
 
-    <video id="video" autoplay></video><br>
-    <button onclick="capture()">Capture & Analyze</button>
+    <video id="video" autoplay playsinline></video><br>
+    <button id="scanBtn">Capture & Analyze</button>
 
     <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
 
-    <div id="result"></div>
+    <div id="result">Waiting...</div>
 
     <script>
-        const API_KEY = "LoKBChSVoD323FIJxp9E";
-        const MODEL_URL = "https://detect.roboflow.com/coco/1280";
+        /* ================= CONFIG ================= */
+
+        const API_KEY = "PUT_YOUR_ROBOFLOW_API_KEY_HERE";
+        const MODEL_ID = "coco/1280";
+        const MODEL_URL = `https://detect.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
 
         const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const result = document.getElementById("result");
+        const scanBtn = document.getElementById("scanBtn");
 
-        // Object → Material mapping
+        /* ============ MATERIAL MAP ============ */
         const materialMap = {
-            bottle: "plastic",
-            cup: "plastic",
-            fork: "plastic",
-            knife: "plastic",
-            spoon: "plastic",
-            toothbrush: "plastic",
-            remote: "plastic",
-            keyboard: "plastic",
-            mouse: "plastic",
-            toy: "plastic",
-            bag: "plastic",
-            bucket: "plastic",
+            "bottle": "plastic", "cup": "plastic", "fork": "plastic", "knife": "plastic",
+            "spoon": "plastic", "toothbrush": "plastic", "remote": "plastic", "mouse": "plastic",
+            "keyboard": "plastic", "bag": "plastic",
 
-            phone: "metal",
-            laptop: "metal",
-            computer: "metal",
-            tv: "metal",
-            monitor: "metal",
-            fan: "metal",
-            scissors: "metal",
-            keys: "metal",
-            pan: "metal",
-            pot: "metal",
+            "cell phone": "electronic", "laptop": "electronic", "tv": "electronic", "monitor": "electronic",
 
-            book: "paper",
-            notebook: "paper",
-            newspaper: "paper",
-            magazine: "paper",
-            cardboard: "paper",
-            box: "paper",
+            "book": "paper", "newspaper": "paper", "cardboard": "paper", "box": "paper",
 
-            glass: "glass",
-            bottle_glass: "glass",
-            jar: "glass",
+            "wine glass": "glass", "vase": "glass", "glass": "glass",
 
-            chair: "wood",
-            table: "wood",
-            desk: "wood",
-            bed: "wood",
-            door: "wood",
+            "chair": "wood", "table": "wood", "bed": "wood",
 
-            apple: "organic",
-            banana: "organic",
-            orange: "organic",
-            food: "organic"
+            "banana": "organic", "apple": "organic", "orange": "organic"
         };
 
-        // Material → emission (kg CO₂)
+        /* ============ EMISSION VALUES (kg CO2/item) ============ */
         const emissionValues = {
             plastic: 6.0,
             metal: 8.0,
@@ -110,71 +104,84 @@
             wood: 0.5,
             electronic: 12.0,
             organic: 0.2,
-            soil: 0.1,
             unknown: 0.0
         };
 
-        // Start camera
-        navigator.mediaDevices.getUserMedia({ video: true })
+        /* ============ CAMERA START ============ */
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => video.srcObject = stream)
-            .catch(err => alert("Camera access denied"));
+            .catch(err => {
+                result.innerHTML = "Camera access denied";
+                scanBtn.disabled = true;
+            });
 
-        async function capture() {
-            const canvas = document.getElementById("canvas");
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            document.getElementById("result").innerHTML = "Analyzing...";
-
-            // Convert canvas → Blob (CORRECT way)
-            const imageBlob = await new Promise(resolve =>
-                canvas.toBlob(resolve, "image/jpeg")
-            );
+        /* ============ CAPTURE & ANALYZE ============ */
+        async function analyze() {
+            scanBtn.disabled = true;
+            result.innerHTML = "Analyzing...";
 
             try {
-                const formData = new FormData();
-                formData.append("file", imageBlob);
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                const response = await fetch(
-                    `${MODEL_URL}?api_key=${API_KEY}`,
-                    {
-                        method: "POST",
-                        body: formData
-                    }
-                );
+                const imageData = canvas.toDataURL("image/jpeg");
+
+                const response = await fetch(MODEL_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: imageData
+                });
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
 
                 const data = await response.json();
 
                 if (!data.predictions || data.predictions.length === 0) {
-                    document.getElementById("result").innerHTML = "No objects detected.";
+                    result.innerHTML = "No objects detected.";
+                    scanBtn.disabled = false;
                     return;
                 }
 
-                let totalEmission = 0;
-                let output = "<h3>Detected Objects</h3>";
+                let total = 0;
+                let html = "<h3>Detected Objects</h3>";
 
-                data.predictions.forEach(p => {
-                    if (p.confidence < 0.4) return;
+                data.predictions
+                    .filter(p => p.confidence >= 0.2)
+                    .forEach(p => {
+                        const label = p.class.toLowerCase();
+                        const material = materialMap[label] || "unknown";
+                        const emission = emissionValues[material] || 0;
 
-                    const objectName = p.class_name.toLowerCase();
-                    const material = materialMap[objectName] || "unknown";
-                    const emission = emissionValues[material] || 0;
+                        total += emission;
 
-                    totalEmission += emission;
+                        html += `
+                    <div class="item">
+                        <b>${p.class}</b> (${(p.confidence * 100).toFixed(1)}%)<br>
+                        Material: ${material}<br>
+                        Emission: ${emission} kg CO₂
+                    </div>
+                `;
+                    });
 
-                    output += `<p>${objectName} → ${material} → ${emission} kg CO₂</p>`;
-                });
+                html += `<h3>Total Estimated Emission: ${total.toFixed(2)} kg CO₂</h3>`;
+                html += `<small>(Approximate educational estimate)</small>`;
 
-                output += `<h3>Total Emission: ${totalEmission.toFixed(2)} kg CO₂</h3>`;
-                document.getElementById("result").innerHTML = output;
+                result.innerHTML = html;
 
-            } catch (error) {
-                console.error(error);
-                document.getElementById("result").innerHTML = "AI analysis failed.";
+            } catch (err) {
+                result.innerHTML = "AI analysis failed: " + err.message;
+                console.error(err);
             }
-        }
-    </script>
 
+            scanBtn.disabled = false;
+        }
+
+        scanBtn.onclick = analyze;
+    </script>
 
 </body>
 
