@@ -2,254 +2,179 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Carbon Footprint Scanner</title>
-
+    <meta charset="UTF-8">
+    <title>Carbon Emission Detector</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-        }
-
-        .container {
-            background: #fff;
-            padding: 25px;
-            border-radius: 15px;
-            width: 100%;
-            max-width: 500px;
+            background: #f4f6f8;
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+            padding: 20px;
         }
 
-        h1 {
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            color: #666;
-            font-size: .9em;
-            margin-bottom: 20px;
-        }
-
-        video {
-            width: 100%;
-            border-radius: 12px;
-            border: 4px solid #27ae60;
-            background: #000;
+        video,
+        img {
+            width: 320px;
+            border-radius: 8px;
+            margin-top: 10px;
         }
 
         button {
-            margin-top: 15px;
-            padding: 12px 30px;
-            font-size: 1em;
-            border: none;
-            border-radius: 30px;
-            background: #27ae60;
-            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
             cursor: pointer;
         }
 
-        button:disabled {
-            background: #aaa;
-        }
-
-        .loader {
-            display: none;
-            margin-top: 15px;
-            color: #3498db;
-        }
-
-        .loader.show {
-            display: block;
-        }
-
-        .spinner {
-            width: 30px;
-            height: 30px;
-            border: 4px solid #eee;
-            border-top: 4px solid #27ae60;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 10px auto;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .result {
-            display: none;
+        #result {
+            background: white;
             margin-top: 20px;
             padding: 15px;
-            background: #f2f4f8;
-            border-radius: 12px;
-        }
-
-        .result.show {
-            display: block;
-        }
-
-        .badge {
-            display: inline-block;
-            background: #3498db;
-            color: #fff;
-            padding: 5px 14px;
-            border-radius: 20px;
-            margin-top: 5px;
-        }
-
-        .error {
-            display: none;
-            margin-top: 15px;
-            background: #ffeaea;
-            color: #c0392b;
-            padding: 12px;
-            border-radius: 10px;
-        }
-
-        .error.show {
-            display: block;
+            border-radius: 8px;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
-        <h1>Carbon Footprint Scanner</h1>
-        <p class="subtitle">Scan an object to estimate CO₂ emissions</p>
+    <h2>Carbon Emission Detector</h2>
 
-        <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay></video><br>
+    <button onclick="capture()">Capture & Analyze</button>
 
-        <button id="scanBtn">Scan Object</button>
+    <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
 
-        <div class="loader" id="loader">
-            <div class="spinner"></div>
-            <div id="loaderText">Processing...</div>
-        </div>
-
-        <div class="error" id="error"></div>
-
-        <div class="result" id="result">
-            <h3>Detected Object</h3>
-            <p id="objectName"></p>
-            <span class="badge" id="material"></span>
-
-            <h3 style="margin-top:15px;">Carbon Emission</h3>
-            <h2 id="emission">0.000 kg CO₂e</h2>
-        </div>
-    </div>
+    <div id="result"></div>
 
     <script>
+        const API_KEY = "LoKBChSVoD323FIJxp9E";
+        const MODEL_URL = "https://detect.roboflow.com/coco/1280";
+
         const video = document.getElementById("video");
-        const scanBtn = document.getElementById("scanBtn");
-        const loader = document.getElementById("loader");
-        const loaderText = document.getElementById("loaderText");
-        const errorBox = document.getElementById("error");
-        const resultBox = document.getElementById("result");
 
-        const objectNameEl = document.getElementById("objectName");
-        const materialEl = document.getElementById("material");
-        const emissionEl = document.getElementById("emission");
+        // Object → Material mapping
+        const materialMap = {
+            bottle: "plastic",
+            cup: "plastic",
+            fork: "plastic",
+            knife: "plastic",
+            spoon: "plastic",
+            toothbrush: "plastic",
+            remote: "plastic",
+            keyboard: "plastic",
+            mouse: "plastic",
+            toy: "plastic",
+            bag: "plastic",
+            bucket: "plastic",
 
-        /* ---------------- CAMERA ---------------- */
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment" }
-                });
-                video.srcObject = stream;
-            } catch {
-                showError("Camera access denied");
-            }
-        }
+            phone: "metal",
+            laptop: "metal",
+            computer: "metal",
+            tv: "metal",
+            monitor: "metal",
+            fan: "metal",
+            scissors: "metal",
+            keys: "metal",
+            pan: "metal",
+            pot: "metal",
 
-        /* ---------------- HELPERS ---------------- */
-        function showLoader(text) {
-            loaderText.textContent = text;
-            loader.classList.add("show");
-        }
-        function hideLoader() {
-            loader.classList.remove("show");
-        }
-        function showError(msg) {
-            errorBox.textContent = msg;
-            errorBox.classList.add("show");
-        }
-        function clearUI() {
-            errorBox.classList.remove("show");
-            resultBox.classList.remove("show");
-        }
+            book: "paper",
+            notebook: "paper",
+            newspaper: "paper",
+            magazine: "paper",
+            cardboard: "paper",
+            box: "paper",
 
-        /* ---------------- SCREENSHOT ---------------- */
-        function captureImage() {
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext("2d").drawImage(video, 0, 0);
-            return canvas.toDataURL("image/jpeg", 0.8);
-        }
+            glass: "glass",
+            bottle_glass: "glass",
+            jar: "glass",
 
-        /* ---------------- EMISSION ---------------- */
-        function calculateEmission(material) {
-            const factors = {
-                paper: 1.2,
-                plastic: 3.5,
-                metal: 2.5,
-                glass: 0.9,
-                soil: 0.2,
-                wood: 0.6
-            };
-            const weightKg = 0.1;
-            return (factors[material] * weightKg).toFixed(3);
-        }
+            chair: "wood",
+            table: "wood",
+            desk: "wood",
+            bed: "wood",
+            door: "wood",
 
-        /* ---------------- SCAN FLOW ---------------- */
-        scanBtn.onclick = async () => {
-            clearUI();
-            showLoader("Analyzing image...");
-            scanBtn.disabled = true;
-
-            try {
-                const image = captureImage();
-
-                const res = await fetch("/netlify/functions/analyze", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ imageBase64: image })
-                });
-
-                if (!res.ok) throw new Error("AI analysis failed");
-
-                const data = await res.json();
-
-                const emission = calculateEmission(data.material);
-
-                objectNameEl.textContent = data.object;
-                materialEl.textContent = data.material.toUpperCase();
-                emissionEl.textContent = emission + " kg CO₂e";
-
-                resultBox.classList.add("show");
-
-            } catch (err) {
-                showError(err.message);
-            }
-
-            hideLoader();
-            scanBtn.disabled = false;
+            apple: "organic",
+            banana: "organic",
+            orange: "organic",
+            food: "organic"
         };
 
-        /* ---------------- INIT ---------------- */
-        startCamera();
+        // Material → emission (kg CO₂)
+        const emissionValues = {
+            plastic: 6.0,
+            metal: 8.0,
+            paper: 1.3,
+            glass: 1.8,
+            wood: 0.5,
+            electronic: 12.0,
+            organic: 0.2,
+            soil: 0.1,
+            unknown: 0.0
+        };
+
+        // Start camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream)
+            .catch(err => alert("Camera access denied"));
+
+        async function capture() {
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            document.getElementById("result").innerHTML = "Analyzing...";
+
+            // Convert canvas → Blob (CORRECT way)
+            const imageBlob = await new Promise(resolve =>
+                canvas.toBlob(resolve, "image/jpeg")
+            );
+
+            try {
+                const formData = new FormData();
+                formData.append("file", imageBlob);
+
+                const response = await fetch(
+                    `${MODEL_URL}?api_key=${API_KEY}`,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!data.predictions || data.predictions.length === 0) {
+                    document.getElementById("result").innerHTML = "No objects detected.";
+                    return;
+                }
+
+                let totalEmission = 0;
+                let output = "<h3>Detected Objects</h3>";
+
+                data.predictions.forEach(p => {
+                    if (p.confidence < 0.4) return;
+
+                    const objectName = p.class_name.toLowerCase();
+                    const material = materialMap[objectName] || "unknown";
+                    const emission = emissionValues[material] || 0;
+
+                    totalEmission += emission;
+
+                    output += `<p>${objectName} → ${material} → ${emission} kg CO₂</p>`;
+                });
+
+                output += `<h3>Total Emission: ${totalEmission.toFixed(2)} kg CO₂</h3>`;
+                document.getElementById("result").innerHTML = output;
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById("result").innerHTML = "AI analysis failed.";
+            }
+        }
     </script>
+
 
 </body>
 
